@@ -1,0 +1,58 @@
+<script>
+  // --- 省略 ---
+
+  function renderAuthScreen() {
+    document.getElementById('app').innerHTML = `
+      <div class="auth-screen">
+        <div class="auth-card">
+          <h1>感情ログ</h1>
+          <div class="form-group">
+            <label>メールアドレス</label>
+            <input type="email" id="email" onfocus="autoHidePwd()">
+          </div>
+          <div class="form-group">
+            <label>パスワード</label>
+            <div class="password-wrapper">
+              <input type="password" id="password" onblur="autoHidePwd()">
+              <button type="button" id="pwdToggleBtn" class="toggle-password" onclick="togglePwd()">表示</button>
+            </div>
+          </div>
+          <div id="nameGroup" class="form-group hidden">
+            <label>氏名</label>
+            <input type="text" id="name" onfocus="autoHidePwd()">
+          </div>
+          <div id="authMessage"></div>
+          <div class="button-group">
+            <button id="loginBtn" class="btn-primary" onclick="handleAuth()">ログイン</button>
+            <button id="switchBtn" class="btn-secondary" onclick="toggleMode()">新規登録へ</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // パスワードを強制的に隠す関数
+  function autoHidePwd() {
+    const p = document.getElementById('password');
+    const b = document.getElementById('pwdToggleBtn');
+    if (p && p.type === 'text') {
+      p.type = 'password';
+      b.textContent = '表示';
+    }
+  }
+
+  function togglePwd() {
+    const p = document.getElementById('password');
+    const b = event.target;
+    // 表示・隠すの切り替え
+    if (p.type === 'password') {
+      p.type = 'text';
+      b.textContent = '隠す';
+    } else {
+      p.type = 'password';
+      b.textContent = '表示';
+    }
+  }
+
+  // --- 以降の関数は変更なし ---
+</script>
