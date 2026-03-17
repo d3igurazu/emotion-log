@@ -1,58 +1,159 @@
-<script>
-  // --- 省略 ---
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root { --primary-color: #1a202c; --bg-color: #f7fafc; --card-bg: #ffffff; }
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); margin: 0; display: flex; justify-content: center; padding: 20px; }
+    .app-container { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 350px 1fr; gap: 24px; }
+    
+    .card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
+    h3 { margin-top: 0; color: #4a5568; font-size: 1.1rem; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; }
+    
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-size: 0.85rem; color: #718096; margin-bottom: 8px; }
+    input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+    
+    /* 以前のUIにあったタグ風のデザイン */
+    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .tag { background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+    
+    /* グラフエリア */
+    #map-container { background: white; border-radius: 12px; position: relative; width: 100%; aspect-ratio: 1/1; border: 1px solid #e2e8f0; }
+    #emotion-canvas { width: 100%; height: 100%; }
 
-  function renderAuthScreen() {
-    document.getElementById('app').innerHTML = `
-      <div class="auth-screen">
-        <div class="auth-card">
-          <h1>感情ログ</h1>
-          <div class="form-group">
-            <label>メールアドレス</label>
-            <input type="email" id="email" onfocus="autoHidePwd()">
-          </div>
-          <div class="form-group">
-            <label>パスワード</label>
-            <div class="password-wrapper">
-              <input type="password" id="password" onblur="autoHidePwd()">
-              <button type="button" id="pwdToggleBtn" class="toggle-password" onclick="togglePwd()">表示</button>
-            </div>
-          </div>
-          <div id="nameGroup" class="form-group hidden">
-            <label>氏名</label>
-            <input type="text" id="name" onfocus="autoHidePwd()">
-          </div>
-          <div id="authMessage"></div>
-          <div class="button-group">
-            <button id="loginBtn" class="btn-primary" onclick="handleAuth()">ログイン</button>
-            <button id="switchBtn" class="btn-secondary" onclick="toggleMode()">新規登録へ</button>
-          </div>
-        </div>
+    .btn-save { background: var(--primary-color); color: white; border: none; padding: 14px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .btn-save:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="card">
+    <h3>新しい記録</h3>
+    <div class="form-group">
+      <label>日付</label>
+      <input type="date" id="date">
+    </div>
+    <div class="form-group">
+      <label>気持ち (X軸: -100 ～ +100)</label>
+      <input type="number" id="xValue" value="0">
+      <div class="tag-container">
+        <span class="tag" onclick="setVal('xValue', 44, '落ち着いてきた')">落ち着いてきた</span>
+        <span class="tag" onclick="setVal('xValue', -28, '不安、怖い')">不安、怖い</span>
       </div>
-    `;
+    </div>
+    <div class="form-group">
+      <label>身体エネルギー (Y軸: -100 ～ +100)</label>
+      <input type="number" id="yValue" value="0">
+      <div class="tag-container">
+        <span class="tag" onclick="setVal('yValue', 36, '穏やか')">穏やか</span>
+        <span class="tag" onclick="setVal('yValue', -15, '寝不足気味')">寝不足気味</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>コメント</label>
+      <input type="text" id="comment" placeholder="詳細を記入...">
+    </div>
+    <button class="btn-save" onclick="saveData()">＋ 記録する</button>
+  </div>
+
+  <div class="card">
+    <h3>状態マップ</h3>
+    <div id="map-container">
+      <canvas id="emotion-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('emotion-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function init() {
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+    resizeCanvas();
+    loadAndDraw();
   }
 
-  // パスワードを強制的に隠す関数
-  function autoHidePwd() {
-    const p = document.getElementById('password');
-    const b = document.getElementById('pwdToggleBtn');
-    if (p && p.type === 'text') {
-      p.type = 'password';
-      b.textContent = '表示';
-    }
+  function resizeCanvas() {
+    const size = canvas.parentElement.clientWidth;
+    canvas.width = size;
+    canvas.height = size;
   }
 
-  function togglePwd() {
-    const p = document.getElementById('password');
-    const b = event.target;
-    // 表示・隠すの切り替え
-    if (p.type === 'password') {
-      p.type = 'text';
-      b.textContent = '隠す';
-    } else {
-      p.type = 'password';
-      b.textContent = '表示';
-    }
+  // 十字線と点を描画するメイン関数
+  function drawMap(points = []) {
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // 2. 十字を黒の太字に
+    ctx.strokeStyle = '#1a202c';
+    ctx.lineWidth = 1.5;
+    
+    // X軸
+    ctx.beginPath();
+    ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+    ctx.stroke();
+    
+    // Y軸
+    ctx.beginPath();
+    ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+    ctx.stroke();
+
+    // 補助線（薄いグレー）
+    ctx.strokeStyle = '#edf2f7';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(w*0.1, h*0.1, w*0.8, h*0.8);
+
+    // 1. 感情マップに点をプロット
+    points.forEach(p => {
+      const x = (p.xValue + 100) * (w / 200);
+      const y = (100 - p.yValue) * (h / 200); // 上がプラスにするため反転
+      
+      ctx.fillStyle = '#f56565'; // 以前の赤い点
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // 外枠をつけて見やすく
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
   }
 
-  // --- 以降の関数は変更なし ---
+  function setVal(id, val, comm) {
+    document.getElementById(id).value = val;
+    if(comm) document.getElementById('comment').value = comm;
+  }
+
+  function saveData() {
+    const data = {
+      date: document.getElementById('date').value,
+      xValue: Number(document.getElementById('xValue').value),
+      yValue: Number(document.getElementById('yValue').value),
+      comment: document.getElementById('comment').value
+    };
+
+    google.script.run.withSuccessHandler(() => {
+      // 3. 保存した後、入力画面をリセット
+      document.getElementById('xValue').value = 0;
+      document.getElementById('yValue').value = 0;
+      document.getElementById('comment').value = "";
+      loadAndDraw(); // 再描画
+    }).saveEntry(data); // Code.gs側の関数名に合わせてください
+  }
+
+  function loadAndDraw() {
+    google.script.run.withSuccessHandler(points => {
+      drawMap(points || []);
+    }).getEntries(); // 全データを取得するCode.gsの関数
+  }
+
+  window.onload = init;
 </script>
+</body>
+</html>
