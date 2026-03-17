@@ -7,17 +7,22 @@
   <style>
     :root { --primary-color: #1a202c; --bg-color: #f7fafc; --card-bg: #ffffff; }
     body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); margin: 0; display: flex; justify-content: center; padding: 20px; }
-    .app-container { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 350px 1fr; gap: 24px; }
+    .app-container { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 400px 1fr; gap: 24px; }
     
     .card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #edf2f7; }
     h3 { margin-top: 0; color: #4a5568; font-size: 1.1rem; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; }
     
     .form-group { margin-bottom: 20px; }
     label { display: block; font-size: 0.85rem; color: #718096; margin-bottom: 8px; }
-    input { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
     
-    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .tag { background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; transition: 0.2s; }
+    .input-row { display: flex; gap: 8px; }
+    .input-num { width: 85px !important; text-align: center; }
+    .input-text { flex: 1; }
+    
+    input { padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 0.95rem; }
+    
+    .tag-container { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tag { background: #edf2f7; color: #4a5568; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; cursor: pointer; transition: 0.2s; }
     .tag:hover { background: #e2e8f0; }
     
     #map-container { background: white; border-radius: 12px; position: relative; width: 100%; aspect-ratio: 1/1; border: 1px solid #e2e8f0; }
@@ -34,30 +39,36 @@
     <h3>新しい記録</h3>
     <div class="form-group">
       <label>日付</label>
-      <input type="date" id="date">
+      <input type="date" id="date" style="width: 100%;">
     </div>
     
     <div class="form-group">
-      <label>気持ち (X軸: -100 ～ +100 または キーワード)</label>
-      <input type="text" id="xValue" value="0">
+      <label>気持ち (X軸: -100 ～ +100 / キーワード)</label>
+      <div class="input-row">
+        <input type="number" id="xValue" class="input-num" value="0" min="-100" max="100">
+        <input type="text" id="xKeyword" class="input-text" placeholder="キーワード入力">
+      </div>
       <div class="tag-container">
-        <span class="tag" onclick="setVal('xValue', 44, '落ち着いてきた')">落ち着いてきた</span>
-        <span class="tag" onclick="setVal('xValue', -28, '不安、怖い')">不安、怖い</span>
+        <span class="tag" onclick="setVal('x', 44, '落ち着いてきた')">落ち着いてきた</span>
+        <span class="tag" onclick="setVal('x', -28, '不安、怖い')">不安、怖い</span>
       </div>
     </div>
 
     <div class="form-group">
-      <label>身体エネルギー (Y軸: -100 ～ +100 または キーワード)</label>
-      <input type="text" id="yValue" value="0">
+      <label>身体エネルギー (Y軸: -100 ～ +100 / キーワード)</label>
+      <div class="input-row">
+        <input type="number" id="yValue" class="input-num" value="0" min="-100" max="100">
+        <input type="text" id="yKeyword" class="input-text" placeholder="キーワード入力">
+      </div>
       <div class="tag-container">
-        <span class="tag" onclick="setVal('yValue', 36, '穏やか')">穏やか</span>
-        <span class="tag" onclick="setVal('yValue', -11, '寝不足気味')">寝不足気味</span>
+        <span class="tag" onclick="setVal('y', 36, '穏やか')">穏やか</span>
+        <span class="tag" onclick="setVal('y', -11, '寝不足気味')">寝不足気味</span>
       </div>
     </div>
 
     <div class="form-group">
       <label>コメント</label>
-      <input type="text" id="comment" placeholder="詳細を記入...">
+      <input type="text" id="comment" placeholder="詳細を記入..." style="width: 100%;">
     </div>
     <button class="btn-save" onclick="saveData()">＋ 記録する</button>
   </div>
@@ -73,7 +84,9 @@
 <script>
   const canvas = document.getElementById('emotion-canvas');
   const ctx = canvas.getContext('2d');
-  let userEmail = "test@example.com"; 
+  
+  // GAS側から動的にメールアドレスを受け取る設定
+  let userEmail = "<?= userEmail ?>"; 
 
   function init() {
     document.getElementById('date').value = new Date().toISOString().split('T')[0];
@@ -93,22 +106,18 @@
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
 
-    // 十字線を黒の太字に
     ctx.strokeStyle = '#1a202c';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
 
-    // 補助線
     ctx.strokeStyle = '#edf2f7';
     ctx.lineWidth = 1;
     ctx.strokeRect(w*0.1, h*0.1, w*0.8, h*0.8);
 
-    // 点をプロット
     points.forEach(p => {
       const xVal = parseFloat(p.xValue);
       const yVal = parseFloat(p.yValue);
-      
       if (!isNaN(xVal) && !isNaN(yVal)) {
         const x = (xVal + 100) * (w / 200);
         const y = (100 - yVal) * (h / 200);
@@ -119,31 +128,29 @@
     });
   }
 
-  function setVal(id, val, comm) {
-    document.getElementById(id).value = val;
-    if(comm) document.getElementById('comment').value = comm;
+  function setVal(axis, val, kw) {
+    document.getElementById(axis + 'Value').value = val;
+    document.getElementById(axis + 'Keyword').value = kw;
   }
 
   function saveData() {
-    const xValRaw = document.getElementById('xValue').value;
-    const yValRaw = document.getElementById('yValue').value;
-    
     const data = {
       action: 'addEntry',
       email: userEmail,
       date: document.getElementById('date').value,
       time: new Date().toLocaleTimeString('ja-JP', {hour: '2-digit', minute:'2-digit'}),
-      xValue: xValRaw,
-      xKeyword: isNaN(parseFloat(xValRaw)) ? xValRaw : '',
-      yValue: yValRaw,
-      yKeyword: isNaN(parseFloat(yValRaw)) ? yValRaw : '',
+      xValue: document.getElementById('xValue').value,
+      xKeyword: document.getElementById('xKeyword').value,
+      yValue: document.getElementById('yValue').value,
+      yKeyword: document.getElementById('yKeyword').value,
       comment: document.getElementById('comment').value
     };
 
     google.script.run.withSuccessHandler(() => {
-      // 入力リセット
       document.getElementById('xValue').value = 0;
+      document.getElementById('xKeyword').value = "";
       document.getElementById('yValue').value = 0;
+      document.getElementById('yKeyword').value = "";
       document.getElementById('comment').value = "";
       loadAndDraw(); 
     }).doPostProxy(data);
@@ -151,7 +158,7 @@
 
   function loadAndDraw() {
     google.script.run.withSuccessHandler(res => {
-      if(res.success) drawMap(res.entries || []);
+      if(res && res.success) drawMap(res.entries || []);
     }).doPostProxy({ action: 'getEntries', email: userEmail });
   }
 
